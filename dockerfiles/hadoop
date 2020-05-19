@@ -1,0 +1,56 @@
+FROM ubuntu:focal
+
+WORKDIR /usr/local
+
+ARG HADOOP_VSN=2.10.0
+ENV HADOOP_VSN=${HADOOP_VSN}
+
+ENV JAVA_HOME=/usr
+ENV HADOOP_HOME=/usr/local/hadoop
+
+ENV PATH=${PATH}:/usr/local/hadoop/bin
+ENV PATH=${PATH}:/usr/local/hadoop/sbin
+
+# INSTALL DEPENDENCIES
+RUN apt-get update
+
+RUN apt-get upgrade -yq
+
+RUN apt-get install -yq \
+  ssh \
+  wget \
+  tini \
+  vim openjdk-8-jdk \
+  openjdk-8-jre
+
+# SETUP SSH SERVER
+RUN ssh-keygen -A \
+  && mkdir -p /run/sshd
+
+# INSTALL HADOOP
+RUN wget -O /usr/local/hadoop-${HADOOP_VSN}.tar.gz \
+  http://ftp.unicamp.br/pub/apache/hadoop/common/hadoop-${HADOOP_VSN}/hadoop-${HADOOP_VSN}.tar.gz 
+
+RUN tar zxf hadoop-${HADOOP_VSN}.tar.gz \
+  && rm hadoop-${HADOOP_VSN}.tar.gz
+
+COPY etc/hadoop/* ${HADOOP_HOME}/etc/hadoop/
+
+RUN useradd -m hadoop \
+  && chown -R hadoop:hadoop hadoop*
+
+RUN ln -s hadoop-${HADOOP_VSN} hadoop
+
+USER hadoop
+
+RUN mkdir ~/.ssh
+
+RUN ssh-keygen \
+  -N "" \
+  -t rsa \
+  -b 2048 \
+  -f ~/.ssh/id_rsa
+
+RUN mv ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+
+WORKDIR /usr/local/hadoop
